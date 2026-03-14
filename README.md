@@ -69,7 +69,7 @@ $code = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
 
 ### 🌐 访问地址
 
-安装完成后，浏览器会自动打开仪表板。如需手动访问：
+安装完成后，程序会在后台启动，但不会自动打开浏览器。请手动访问：
 
 ```
 http://localhost:8501
@@ -185,14 +185,13 @@ Convex_OPT/
 
 ## 🔧 脚本使用说明
 
-### 安装脚本 (一键安装 + 开机自启动)
+### 安装脚本 (一键安装 + 登录后后台自启动)
 安装脚本会自动完成以下操作：
 1. 检测并安装 Python（如未安装）
 2. 创建 Python 虚拟环境
 3. 安装所有依赖包
-4. 配置开机自启动
-5. 启动后台服务
-6. 在默认浏览器中打开仪表板
+4. 配置登录后后台自启动
+5. 不在安装过程中自动打开浏览器
 
 ```bash
 # macOS
@@ -214,6 +213,8 @@ Convex_OPT/
 powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.convex_opt\scripts\start_windows.ps1"   # 启动
 powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.convex_opt\scripts\stop_windows.ps1"    # 停止
 ```
+
+Windows 安装完成后会注册登录触发的计划任务。用户登录系统后，程序会在后台启动，但需要手动访问 http://localhost:8501。
 
 ### 升级脚本
 ```bash
