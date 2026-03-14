@@ -5,9 +5,9 @@ $ErrorActionPreference = "SilentlyContinue"
 $TaskName = "Convex_OPT"
 $InstallDir = "$env:USERPROFILE\.convex_opt"
 
-$reply = Read-Host "确定要卸载 OPT Convex Strategy 吗？(Y/N)"
+$reply = Read-Host "Confirm uninstall OPT Convex Strategy? (Y/N)"
 if ($reply -notin @("Y", "y")) {
-    Write-Host "已取消" -ForegroundColor Yellow
+    Write-Host "Cancelled" -ForegroundColor Yellow
     exit 0
 }
 
@@ -29,4 +29,4 @@ if (Test-Path $InstallDir) {
     Remove-Item $InstallDir -Recurse -Force
 }
 
-Write-Host "卸载完成" -ForegroundColor Green
+Write-Host "Uninstall completed" -ForegroundColor Green

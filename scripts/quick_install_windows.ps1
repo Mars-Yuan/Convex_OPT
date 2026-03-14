@@ -49,7 +49,7 @@ function Download-WithZip {
 
 	$expandedDir = Join-Path $TempDir "Convex_OPT-main"
 	if (-not (Test-Path "$expandedDir\scripts\install_windows.ps1")) {
-		throw "ZIP 下载成功，但未找到 install_windows.ps1"
+		throw "ZIP download succeeded, but install_windows.ps1 was not found"
 	}
 
 	Get-ChildItem -Path $expandedDir -Force | ForEach-Object {
@@ -67,22 +67,22 @@ function Cleanup-TempFiles {
 	}
 }
 
-Write-Host "正在下载 Convex_OPT 最新版本..." -ForegroundColor Cyan
+Write-Host "Downloading latest Convex_OPT package..." -ForegroundColor Cyan
 
 try {
 	Clear-ProblemProxySettings
 
 	if (-not (Download-WithGit)) {
-		Write-Warn "git clone 失败，回退到 ZIP 下载..."
+		Write-Warn "git clone failed, switching to ZIP download..."
 		Download-WithZip
 	}
 
 	$installScript = "$TempDir\scripts\install_windows.ps1"
 	if (-not (Test-Path $installScript)) {
-		throw "未找到安装脚本: $installScript"
+		throw "Install script not found: $installScript"
 	}
 
-	Write-Success "下载完成，开始执行安装脚本"
+	Write-Success "Download complete. Starting installer."
 	powershell -NoProfile -ExecutionPolicy Bypass -File $installScript
 }
 finally {

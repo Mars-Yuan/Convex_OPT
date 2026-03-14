@@ -8,10 +8,10 @@ $TaskName = "Convex_OPT"
 $TempDir = Join-Path $env:TEMP ("convex_opt_upgrade_" + [guid]::NewGuid().ToString("N"))
 
 if (-not (Test-Path $InstallDir)) {
-    throw "未检测到已安装目录，请先运行安装脚本。"
+    throw "Install directory not found. Please run the installer first."
 }
 
-Write-Host "正在升级 OPT Convex Strategy..." -ForegroundColor Cyan
+Write-Host "Upgrading OPT Convex Strategy..." -ForegroundColor Cyan
 if (Test-Path "$InstallDir\Streamlit_data.json") {
     Copy-Item "$InstallDir\Streamlit_data.json" "$env:TEMP\Streamlit_data_backup.json" -Force
 }
@@ -45,4 +45,4 @@ if (Test-Path "$env:TEMP\Streamlit_data_backup.json") {
 
 Start-ScheduledTask -TaskName $TaskName
 Remove-Item $TempDir -Recurse -Force
-Write-Host "升级完成: http://localhost:8501" -ForegroundColor Green
+Write-Host "Upgrade completed: http://localhost:8501" -ForegroundColor Green

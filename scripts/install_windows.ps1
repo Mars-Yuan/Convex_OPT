@@ -25,7 +25,7 @@ function Get-PythonCommand {
             }
         } catch {}
     }
-    throw "未检测到 Python 3.9+，请先安装 Python。"
+    throw "Python 3.9+ not found. Please install Python first."
 }
 
 function Copy-ProjectFiles {
@@ -83,17 +83,17 @@ function Start-App {
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Blue
-Write-Host "      OPT Convex Strategy - Windows 安装程序                " -ForegroundColor Blue
+Write-Host "      OPT Convex Strategy - Windows Installer               " -ForegroundColor Blue
 Write-Host "============================================================" -ForegroundColor Blue
 Write-Host ""
 
 $pythonCmd = Get-PythonCommand
-Write-Info "使用 Python: $pythonCmd"
+Write-Info "Using Python: $pythonCmd"
 Copy-ProjectFiles
 Setup-Venv -PythonCmd $pythonCmd
 Write-StartupScript
 Register-AppTask
 Start-App
 
-Write-Success "安装完成"
-Write-Host "访问地址: http://localhost:$Port" -ForegroundColor Cyan
+Write-Success "Installation completed"
+Write-Host "URL: http://localhost:$Port" -ForegroundColor Cyan
