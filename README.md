@@ -69,7 +69,7 @@ $code = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
 
 ### 🌐 访问地址
 
-安装完成后，程序会在后台启动，但不会自动打开浏览器。请手动访问：
+安装完成后，程序会立即在后台启动一次，并注册为 Windows 开机后台自启动，但不会自动打开浏览器。请手动访问：
 
 ```
 http://localhost:8501
@@ -185,13 +185,14 @@ Convex_OPT/
 
 ## 🔧 脚本使用说明
 
-### 安装脚本 (一键安装 + 登录后后台自启动)
+### 安装脚本 (一键安装 + 开机后台自启动)
 安装脚本会自动完成以下操作：
 1. 检测并安装 Python（如未安装）
 2. 创建 Python 虚拟环境
 3. 安装所有依赖包
-4. 配置登录后后台自启动
-5. 不在安装过程中自动打开浏览器
+4. 配置 Windows 开机后台自启动
+5. 安装完成后立即启动一次后台服务
+6. 不在安装过程中自动打开浏览器
 
 ```bash
 # macOS
@@ -214,7 +215,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.convex_op
 powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.convex_opt\scripts\stop_windows.ps1"    # 停止
 ```
 
-Windows 安装完成后会注册登录触发的计划任务。用户登录系统后，程序会在后台启动，但需要手动访问 http://localhost:8501。
+Windows 安装完成后会注册开机触发的计划任务，运行账户为 SYSTEM。系统开机后即使没有用户登录，程序也会在后台启动；安装完成后也会立即启动一次，但需要手动访问 http://localhost:8501。
 
 ### 升级脚本
 ```bash

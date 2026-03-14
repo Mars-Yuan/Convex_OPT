@@ -68,7 +68,7 @@ function Cleanup-TempFiles {
 }
 
 Write-Host "Downloading latest Convex_OPT package..." -ForegroundColor Cyan
-Write-Host "The installer will register background startup after Windows sign-in and will not open the browser automatically." -ForegroundColor Yellow
+Write-Host "The installer will register background startup at Windows boot and will not open the browser automatically." -ForegroundColor Yellow
 
 try {
 	Clear-ProblemProxySettings

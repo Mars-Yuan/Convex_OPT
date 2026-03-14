@@ -14,17 +14,6 @@ function Write-Info($message) { Write-Host "-> $message" -ForegroundColor Cyan }
 function Write-Success($message) { Write-Host "[OK] $message" -ForegroundColor Green }
 function Write-Warn($message) { Write-Host "[!] $message" -ForegroundColor Yellow }
 
-function Get-CurrentUserId {
-    try {
-        return [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-    } catch {
-        if ($env:USERDOMAIN) {
-            return "$env:USERDOMAIN\$env:USERNAME"
-        }
-        return $env:USERNAME
-    }
-}
-
 function Get-PythonCommand {
     foreach ($cmd in @("python", "py", "python3")) {
         try {
@@ -73,18 +62,22 @@ Set-Location "$InstallDir"
 }
 
 function Register-AppTask {
-    $currentUserId = Get-CurrentUserId
     $existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     if ($existing) {
         Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
     }
 
     $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$InstallDir\startup.ps1`""
-    $trigger = New-ScheduledTaskTrigger -AtLogOn -User $currentUserId
+    $trigger = New-ScheduledTaskTrigger -AtStartup
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
-    $principal = New-ScheduledTaskPrincipal -UserId $currentUserId -LogonType Interactive -RunLevel Limited
+    $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 
     Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description $DisplayName | Out-Null
+}
+
+function Start-AppTask {
+    Start-ScheduledTask -TaskName $TaskName
+    Start-Sleep -Seconds 4
 }
 
 Write-Host ""
@@ -99,8 +92,9 @@ Copy-ProjectFiles
 Setup-Venv -PythonCmd $pythonCmd
 Write-StartupScript
 Register-AppTask
+Start-AppTask
 
 Write-Success "Installation completed"
-Write-Host "Startup mode: launch in background after Windows sign-in" -ForegroundColor Cyan
+Write-Host "Startup mode: launch in background at Windows boot" -ForegroundColor Cyan
 Write-Host "URL: http://localhost:$Port" -ForegroundColor Cyan
 Write-Host "Browser is not opened automatically." -ForegroundColor Yellow
