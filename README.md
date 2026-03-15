@@ -1,7 +1,7 @@
-# OPT Convex Strategy Dashboard (V5.1 / V3 Hybrid)
+# OPT Convex Strategy Dashboard (V5.2 / V3 Hybrid)
 
 <p align="center">
-   <img src="https://img.shields.io/badge/version-V5.1-orange" alt="Version">
+   <img src="https://img.shields.io/badge/version-V5.2-orange" alt="Version">
   <img src="https://img.shields.io/badge/python-3.9%2B-blue" alt="Python Version">
   <img src="https://img.shields.io/badge/streamlit-1.28%2B-red" alt="Streamlit Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
@@ -9,7 +9,7 @@
 
 ## 📖 项目简介
 
-OPT Convex Strategy Dashboard 是一个基于 **OPT Convex 单标的仓位控制框架** 的可视化仪表板，当前版本为 **V5.1 / V3 Hybrid**。系统通过 Streamlit 构建，使用 Yahoo Finance 数据源，对单一标的执行趋势滤波、状态诊断、目标仓位求解与回测展示。
+OPT Convex Strategy Dashboard 是一个基于 **OPT Convex 单标的仓位控制框架** 的可视化仪表板，当前版本为 **V5.2 / V3 Hybrid**。系统通过 Streamlit 构建，使用 Yahoo Finance 数据源，对单一标的执行趋势滤波、状态诊断、目标仓位求解与回测展示。
 
 ### 核心功能
 
@@ -248,7 +248,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.convex_op
    - 选择回测起止日期
 
 2. **策略表现概览**
-   - 查看 V5.1 / V3 Hybrid vs 买入持有基准的核心指标对比
+   - 查看 V5.2 / V3 Hybrid vs 买入持有基准的核心指标对比
    - 总收益率、年化收益、Sharpe Ratio、最大回撤
 
 3. **价格·趋势·仓位·ADX 联动图**
@@ -350,7 +350,12 @@ pip install -r requirements.txt
 
 ## 📝 更新日志
 
-### V5.1 (当前版本)
+### V5.2 (当前版本)
+- 主策略说明升级为 OPT Convex 策略 V5.2
+- 价格·趋势·仓位 图显示日期坐标，并继续与 ADX 图共享日期轴严格对齐
+- 文档与页面文案统一为 V5.2 / V3 Hybrid 版本说明
+
+### V5.1
 - 主策略说明升级为 OPT Convex 策略 V5.1
 - 价格·趋势·仓位 与 ADX 图表合并为共享日期轴的联动子图
 - 交易明细表移除“前一日实际仓位”列，仅保留当日仓位与仓位变化

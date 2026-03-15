@@ -939,7 +939,7 @@ def build_runtime_data(symbol, start_date_input, end_date_input):
 def main():
     st.markdown(
         '<h1 style="text-align: center;">OPT Convex 策略 '
-        '<span style="font-size: 0.5em; color: #888888;">V5.1</span></h1>',
+        '<span style="font-size: 0.5em; color: #888888;">V5.2</span></h1>',
         unsafe_allow_html=True
     )
 
@@ -958,7 +958,7 @@ def main():
     st.divider()
 
     # 构建数据
-    with st.spinner('正在计算策略（OPT Convex V5.1 仓位求解）...'):
+    with st.spinner('正在计算策略（OPT Convex V5.2 仓位求解）...'):
         runtime_data, runtime_error = build_runtime_data(symbol_input, start_date_input, end_date_input)
 
     if runtime_error:
@@ -979,7 +979,7 @@ def main():
         unsafe_allow_html=True
     )
 
-    st.markdown("**OPT Convex 策略 V5.1**")
+    st.markdown("**OPT Convex 策略 V5.2**")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric(
@@ -1034,7 +1034,7 @@ def main():
     fig_equity = go.Figure()
     fig_equity.add_trace(go.Scatter(
         x=dates, y=data['equity_curve'],
-        name='OPT Convex 策略 V5.1', line=dict(color=colors['strategy'], width=2.5)
+        name='OPT Convex 策略 V5.2', line=dict(color=colors['strategy'], width=2.5)
     ))
     fig_equity.add_trace(go.Scatter(
         x=dates, y=data['buy_hold_curve'],
@@ -1130,6 +1130,7 @@ def main():
     fig_combined.update_yaxes(title_text="价格 ($)", row=1, col=1, secondary_y=False)
     fig_combined.update_yaxes(title_text="仓位", range=[0, 1.05], row=1, col=1, secondary_y=True)
     if has_adx:
+        fig_combined.update_xaxes(showticklabels=True, row=1, col=1)
         fig_combined.update_yaxes(title_text='ADX', row=2, col=1)
         fig_combined.update_xaxes(title_text='日期', row=2, col=1)
     else:
@@ -1216,7 +1217,7 @@ def main():
     # ========== 页脚 ==========
     st.divider()
     st.caption(
-        "OPT Convex 策略 | V5.1 | 开发: Mars Yuan"
+        "OPT Convex 策略 | V5.2 | 开发: Mars Yuan"
     )
 
 
