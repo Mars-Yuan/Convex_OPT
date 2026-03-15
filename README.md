@@ -1,7 +1,7 @@
-# OPT Convex Strategy Dashboard (V5.0 / V3 Hybrid)
+# OPT Convex Strategy Dashboard (V5.1 / V3 Hybrid)
 
 <p align="center">
-   <img src="https://img.shields.io/badge/version-V5.0-orange" alt="Version">
+   <img src="https://img.shields.io/badge/version-V5.1-orange" alt="Version">
   <img src="https://img.shields.io/badge/python-3.9%2B-blue" alt="Python Version">
   <img src="https://img.shields.io/badge/streamlit-1.28%2B-red" alt="Streamlit Version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
@@ -9,14 +9,14 @@
 
 ## 📖 项目简介
 
-OPT Convex Strategy Dashboard 是一个基于 **OPT Convex 单标的仓位控制框架** 的可视化仪表板，当前版本为 **V5.0 / V3 Hybrid**。系统通过 Streamlit 构建，使用 Yahoo Finance 数据源，对单一标的执行趋势滤波、状态诊断、目标仓位求解与回测展示。
+OPT Convex Strategy Dashboard 是一个基于 **OPT Convex 单标的仓位控制框架** 的可视化仪表板，当前版本为 **V5.1 / V3 Hybrid**。系统通过 Streamlit 构建，使用 Yahoo Finance 数据源，对单一标的执行趋势滤波、状态诊断、目标仓位求解与回测展示。
 
 ### 核心功能
 
 - 🎯 **V3 Hybrid 单标的回测**: 面向单一股票或 ETF 的正式区间回测与预热扩展
 - 📊 **OPT Convex 仓位求解**: 基于 alpha、alpha_accel、状态分数与波动率生成目标仓位
-- 📈 **趋势与均线可视化**: 展示 Close、EMA 21、EMA 60、L1 Trend 与目标仓位
-- 🔔 **交易明细展示**: 直观显示每次调仓的方向、状态与仓位变化
+- 📈 **趋势与均线可视化**: 展示 Close、EMA 21、EMA 60、L1 Trend、目标仓位，并与 ADX 共用时间轴对齐
+- 🔔 **交易明细展示**: 直观显示每次调仓的方向、状态、当日仓位与仓位变化
 - 📉 **风险指标监控**: Sharpe Ratio、最大回撤、年化波动率等
 
 ## 🖥️ 系统要求
@@ -248,11 +248,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.convex_op
    - 选择回测起止日期
 
 2. **策略表现概览**
-   - 查看 V5.0 / V3 Hybrid vs 买入持有基准的核心指标对比
+   - 查看 V5.1 / V3 Hybrid vs 买入持有基准的核心指标对比
    - 总收益率、年化收益、Sharpe Ratio、最大回撤
 
-3. **价格·趋势·仓位图**
-   - 展示 Close、EMA 21、EMA 60、L1 Trend 与目标仓位
+3. **价格·趋势·仓位·ADX 联动图**
+   - 展示 Close、EMA 21、EMA 60、L1 Trend、目标仓位与 ADX 指标
+   - 价格区与 ADX 区共享日期轴，缩放与悬停同步
 
 4. **累计收益曲线**
    - 对比 OPT Convex 策略与买入持有基准
@@ -261,7 +262,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.convex_op
    - 查看调仓日期、交易方向、市场状态与仓位变化
 
 6. **ADX 指标**
-   - 展示 PDI2、MDI2、ADX 和 Buy Signal
+   - 在联动子图中展示 PDI2、MDI2、ADX 和 Buy Signal
 
 ### 数据源说明
 
@@ -349,7 +350,13 @@ pip install -r requirements.txt
 
 ## 📝 更新日志
 
-### V5.0 (当前版本)
+### V5.1 (当前版本)
+- 主策略说明升级为 OPT Convex 策略 V5.1
+- 价格·趋势·仓位 与 ADX 图表合并为共享日期轴的联动子图
+- 交易明细表移除“前一日实际仓位”列，仅保留当日仓位与仓位变化
+- 文档与页面文案统一为 V5.1 / V3 Hybrid 版本说明
+
+### V5.0
 - 主策略说明升级为 OPT Convex 策略 V5.0
 - Streamlit 页面切换为单标的 V3 Hybrid 展示逻辑
 - 文档与页面文案统一为 V5.0 / V3 Hybrid 版本说明

@@ -939,7 +939,7 @@ def build_runtime_data(symbol, start_date_input, end_date_input):
 def main():
     st.markdown(
         '<h1 style="text-align: center;">OPT Convex 策略 '
-        '<span style="font-size: 0.5em; color: #888888;">V5.0</span></h1>',
+        '<span style="font-size: 0.5em; color: #888888;">V5.1</span></h1>',
         unsafe_allow_html=True
     )
 
@@ -958,7 +958,7 @@ def main():
     st.divider()
 
     # 构建数据
-    with st.spinner('正在计算策略（OPT Convex V5.0 仓位求解）...'):
+    with st.spinner('正在计算策略（OPT Convex V5.1 仓位求解）...'):
         runtime_data, runtime_error = build_runtime_data(symbol_input, start_date_input, end_date_input)
 
     if runtime_error:
@@ -979,7 +979,7 @@ def main():
         unsafe_allow_html=True
     )
 
-    st.markdown("**OPT Convex 策略 V5.0**")
+    st.markdown("**OPT Convex 策略 V5.1**")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric(
@@ -1034,7 +1034,7 @@ def main():
     fig_equity = go.Figure()
     fig_equity.add_trace(go.Scatter(
         x=dates, y=data['equity_curve'],
-        name='OPT Convex 策略 V5.0', line=dict(color=colors['strategy'], width=2.5)
+        name='OPT Convex 策略 V5.1', line=dict(color=colors['strategy'], width=2.5)
     ))
     fig_equity.add_trace(go.Scatter(
         x=dates, y=data['buy_hold_curve'],
@@ -1050,95 +1050,94 @@ def main():
 
     st.divider()
 
-    # ========== 价格 + 趋势 + 仓位 ==========
+    # ========== 价格 + 趋势 + 仓位 + ADX ==========
     st.markdown(
-        f"### 价格·趋势·仓位 <span style='font-size: 0.7em; color: #888888;'>{data['symbol']}</span>",
-        unsafe_allow_html=True
-    )
-
-    fig_price = make_subplots(specs=[[{"secondary_y": True}]])
-
-    fig_price.add_trace(go.Scatter(
-        x=dates, y=data['close'], name='Close',
-        line=dict(color=colors['close'], width=1.2)
-    ), secondary_y=False)
-
-    fig_price.add_trace(go.Scatter(
-        x=dates, y=data['ema21'], name='EMA 21',
-        line=dict(color=colors['ema21'], width=1.0)
-    ), secondary_y=False)
-
-    fig_price.add_trace(go.Scatter(
-        x=dates, y=data['ema60'], name='EMA 60',
-        line=dict(color=colors['ema60'], width=1.0)
-    ), secondary_y=False)
-
-    fig_price.add_trace(go.Scatter(
-        x=dates, y=data['trend'], name='L1 Trend',
-        line=dict(color=colors['trend'], width=0.5, dash='dot')
-    ), secondary_y=False)
-
-    fig_price.add_trace(go.Scatter(
-        x=dates, y=data['target_weight'], name='目标仓位',
-        fill='tozeroy', line=dict(color='#d9d9d9', width=0.5), opacity=0.30,
-    ), secondary_y=True)
-
-    fig_price.update_layout(
-        template='plotly_dark', hovermode='x unified',
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, x=0.5, xanchor='center'),
-        margin=dict(l=20, r=20, t=40, b=40), height=400,
-    )
-    fig_price.update_yaxes(title_text="价格 ($)", secondary_y=False)
-    fig_price.update_yaxes(title_text="仓位", range=[0, 1.05], secondary_y=True)
-
-    st.plotly_chart(fig_price, use_container_width=True)
-
-    st.divider()
-
-    # ========== ADX 指标 ==========
-    st.markdown(
-        f"### ADX 指标 <span style='font-size: 0.7em; color: #888888;'>{data['symbol']}</span>",
+        f"### 价格·趋势·仓位·ADX <span style='font-size: 0.7em; color: #888888;'>{data['symbol']}</span>",
         unsafe_allow_html=True
     )
 
     adx_data = data.get('ADX', [])
-    if adx_data and any(v is not None for v in adx_data):
-        fig_adx = go.Figure()
-        fig_adx.add_trace(go.Scatter(
+    has_adx = adx_data and any(v is not None for v in adx_data)
+
+    if has_adx:
+        fig_combined = make_subplots(
+            rows=2,
+            cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.08,
+            row_heights=[0.62, 0.38],
+            specs=[[{"secondary_y": True}], [{"secondary_y": False}]],
+        )
+    else:
+        fig_combined = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig_combined.add_trace(go.Scatter(
+        x=dates, y=data['close'], name='Close',
+        line=dict(color=colors['close'], width=1.2)
+    ), row=1, col=1, secondary_y=False)
+
+    fig_combined.add_trace(go.Scatter(
+        x=dates, y=data['ema21'], name='EMA 21',
+        line=dict(color=colors['ema21'], width=1.0)
+    ), row=1, col=1, secondary_y=False)
+
+    fig_combined.add_trace(go.Scatter(
+        x=dates, y=data['ema60'], name='EMA 60',
+        line=dict(color=colors['ema60'], width=1.0)
+    ), row=1, col=1, secondary_y=False)
+
+    fig_combined.add_trace(go.Scatter(
+        x=dates, y=data['trend'], name='L1 Trend',
+        line=dict(color=colors['trend'], width=0.5, dash='dot')
+    ), row=1, col=1, secondary_y=False)
+
+    fig_combined.add_trace(go.Scatter(
+        x=dates, y=data['target_weight'], name='目标仓位',
+        fill='tozeroy', line=dict(color='#d9d9d9', width=0.5), opacity=0.30,
+    ), row=1, col=1, secondary_y=True)
+
+    if has_adx:
+        fig_combined.add_trace(go.Scatter(
             x=dates, y=data['PDI2'], name='PDI2',
             line=dict(color='#d62728', width=1.1)
-        ))
-        fig_adx.add_trace(go.Scatter(
+        ), row=2, col=1)
+        fig_combined.add_trace(go.Scatter(
             x=dates, y=data['MDI2'], name='MDI2',
             line=dict(color='#2ca02c', width=1.1)
-        ))
-        fig_adx.add_trace(go.Scatter(
+        ), row=2, col=1)
+        fig_combined.add_trace(go.Scatter(
             x=dates, y=data['ADX'], name='ADX',
             line=dict(color='#f1c40f', width=1.2)
-        ))
-        fig_adx.add_hline(y=10, line_dash="dash", line_color="#1f77b4", annotation_text="10")
-        fig_adx.add_hline(y=20, line_dash="dash", line_color="#1f77b4", annotation_text="20")
-        fig_adx.add_hline(y=40, line_dash="dash", line_color="#1f77b4", annotation_text="40")
+        ), row=2, col=1)
+        fig_combined.add_hline(y=10, line_dash="dash", line_color="#1f77b4", annotation_text="10", row=2, col=1)
+        fig_combined.add_hline(y=20, line_dash="dash", line_color="#1f77b4", annotation_text="20", row=2, col=1)
+        fig_combined.add_hline(y=40, line_dash="dash", line_color="#1f77b4", annotation_text="40", row=2, col=1)
 
-        # 买入信号标记
         buy_signals = data.get('BuySignal', [])
-        buy_x = [dates[i] for i in range(len(buy_signals))
-                 if buy_signals[i] is not None]
+        buy_x = [dates[i] for i in range(len(buy_signals)) if buy_signals[i] is not None]
         buy_y = [v for v in buy_signals if v is not None]
         if buy_x:
-            fig_adx.add_trace(go.Scatter(
+            fig_combined.add_trace(go.Scatter(
                 x=buy_x, y=buy_y, mode='markers', name='Buy Signal',
                 marker=dict(color='#17becf', size=8, symbol='triangle-up')
-            ))
+            ), row=2, col=1)
 
-        fig_adx.update_layout(
-            template='plotly_dark', hovermode='x unified',
-            legend=dict(orientation='h', yanchor='bottom', y=1.02, x=0.5, xanchor='center'),
-            margin=dict(l=20, r=20, t=40, b=40), height=350,
-            yaxis_title='ADX',
-        )
-        st.plotly_chart(fig_adx, use_container_width=True)
+    fig_combined.update_layout(
+        template='plotly_dark', hovermode='x unified',
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, x=0.5, xanchor='center'),
+        margin=dict(l=20, r=20, t=40, b=40), height=650 if has_adx else 400,
+    )
+    fig_combined.update_yaxes(title_text="价格 ($)", row=1, col=1, secondary_y=False)
+    fig_combined.update_yaxes(title_text="仓位", range=[0, 1.05], row=1, col=1, secondary_y=True)
+    if has_adx:
+        fig_combined.update_yaxes(title_text='ADX', row=2, col=1)
+        fig_combined.update_xaxes(title_text='日期', row=2, col=1)
     else:
+        fig_combined.update_xaxes(title_text='日期', row=1, col=1)
+
+    st.plotly_chart(fig_combined, use_container_width=True)
+
+    if not has_adx:
         st.info("ADX 数据不可用")
 
     st.divider()
@@ -1186,7 +1185,7 @@ def main():
 
     display_cols = [
         '日期', '交易方向', '市场状态', '收盘价',
-        '前一日实际仓位', '当日实际仓位', '实际仓位变化'
+        '当日实际仓位', '实际仓位变化'
     ]
 
     if not trade_table.empty:
@@ -1207,7 +1206,7 @@ def main():
             ], overwrite=False)
             .set_properties(**{'text-align': 'center'})
             .format({'收盘价': '{:.2f}'})
-            .format('{:.2%}', subset=['前一日实际仓位', '当日实际仓位', '实际仓位变化'])
+            .format('{:.2%}', subset=['当日实际仓位', '实际仓位变化'])
             .map(highlight_status, subset=['市场状态']),
             use_container_width=True, hide_index=True
         )
@@ -1217,7 +1216,7 @@ def main():
     # ========== 页脚 ==========
     st.divider()
     st.caption(
-        "OPT Convex 策略 | V5.0 | 开发: Mars Yuan"
+        "OPT Convex 策略 | V5.1 | 开发: Mars Yuan"
     )
 
 
