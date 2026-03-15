@@ -91,15 +91,19 @@ INITIAL_CASH = 100000.0
 COMMISSION_RATE = 0.0000
 SLIPPAGE_PCT = 0.0000
 
+V2_CONSERVATIVE_ALPHA_THRESHOLD = 0.05
 V2_CONSERVATIVE_MIN_WEIGHT = 0.45
-V2_CONSERVATIVE_ALPHA_SCALE = 2.00
+V2_CONSERVATIVE_ALPHA_SCALE = 10.00
+V2_CONSERVATIVE_MAX_WEIGHT_CAP_MULTIPLIER = 1.00
 V2_ACCEL_WEIGHT = 0.35
 V2_ADVANCED_UPTREND_MIN_WEIGHT = 0.55
 V2_ADVANCED_RANGE_MAX_WEIGHT = 0.35
 V2_ADVANCED_ALPHA_DEADZONE = 0.04
-V2_ADVANCED_ALPHA_SCALE = 5.00
+V2_ADVANCED_ALPHA_SCALE = 10.00
 V2_ADVANCED_DEFAULT_RISK_MULTIPLIER = 0.65
 V2_ADVANCED_DEFAULT_BEAR_PENALTY_MULTIPLIER = 1.00
+V2_ADVANCED_TARGET_WEIGHT_MULTIPLIER = 1.00
+V2_ADVANCED_MAX_WEIGHT_CAP_MULTIPLIER = 1.50
 V3_ALPHA_SCALE = 4.20
 V3_ACCEL_WEIGHT = 0.42
 V3_STATE_WEIGHT = 0.36
@@ -108,6 +112,7 @@ V3_POS_GAP_BONUS = 0.08
 V3_UPTREND_MIN_WEIGHT = 0.50
 V3_RANGE_MAX_WEIGHT = 0.80
 V3_ALPHA_DEADZONE = 0.01
+V3_MAX_WEIGHT_CAP_MULTIPLIER = 1.30
 V3_RISK_MULTIPLIER = 0.48
 V3_BEAR_PENALTY_MULTIPLIER = 0.84
 V3_BEAR_CAP_PENALTY = 0.40
@@ -271,111 +276,164 @@ def compute_convex_diagnostics(window_close, lam=20.0, signal_span=5):
     }
 
 
-def solve_single_asset_weight_hybrid(alpha, alpha_accel, trend_gap, sigma, previous_weight,
-                                     bull_score, range_score, bear_score):
+def solve_single_asset_weight_v2(alpha, alpha_accel, trend_gap, sigma, previous_weight,
+                                 bull_score, range_score, bear_score, profile='v3'):
     sigma = max(float(sigma), 1e-4)
+    v1_reference_weight = np.nan
+    v2_reference_weight = np.nan
+    blend_to_v1 = np.nan
+    blend_target_weight = np.nan
+    tracking_strength = 0.0
+    lead_activation = np.nan
+    exit_activation = np.nan
+    up_turnover_penalty = np.nan
+    down_turnover_penalty = np.nan
+    target_weight_multiplier = 1.0
 
-    raw_composite_alpha = (
-        alpha
-        + V3_ACCEL_WEIGHT * alpha_accel
-        + V3_STATE_WEIGHT * (bull_score - bear_score)
-        + V3_POS_GAP_BONUS * max(trend_gap, 0.0)
-        - V3_NEG_GAP_PENALTY * max(-trend_gap, 0.0)
-    )
-    composite_alpha = V3_ALPHA_SCALE * raw_composite_alpha
-    composite_alpha = 0.0 if abs(composite_alpha) < V3_ALPHA_DEADZONE else composite_alpha
-    risk_aversion = RISK_AVERSION * (0.36 + 0.28 * range_score + 0.92 * bear_score) * V3_RISK_MULTIPLIER
-    turnover_penalty = TURNOVER_PENALTY * (0.44 + 0.14 * range_score + 0.08 * bear_score)
-    floor_cap = V3_UPTREND_MIN_WEIGHT
-    base_weight_cap = float(np.clip(
-        MAX_WEIGHT - (MAX_WEIGHT - V3_RANGE_MAX_WEIGHT) * range_score - V3_BEAR_CAP_PENALTY * bear_score,
-        0.20,
-        MAX_WEIGHT,
-    ))
-
-    lead_activation = float(np.clip(
-        V3_LEAD_ACCEL_BONUS * max(alpha_accel, 0.0)
-        + V3_LEAD_STATE_BONUS * max(bull_score - bear_score, 0.0)
-        + V3_LEAD_ALPHA_BONUS * max(alpha, 0.0)
-        - V3_LEAD_NEG_GAP_PENALTY * max(-trend_gap, 0.0),
-        0.0,
-        1.0,
-    ))
-    exit_activation = float(np.clip(
-        V3_EXIT_ACCEL_BONUS * max(-alpha_accel, 0.0)
-        + V3_EXIT_BEAR_BONUS * bear_score
-        + V3_EXIT_ALPHA_BONUS * max(-alpha, 0.0)
-        + V3_EXIT_GAP_BONUS * max(-trend_gap, 0.0),
-        0.0,
-        1.0,
-    ))
-    max_weight_cap = float(np.clip(
-        base_weight_cap + V3_LEAD_CAP_BONUS * lead_activation - V3_EXIT_CAP_PENALTY * exit_activation,
-        0.15,
-        MAX_WEIGHT,
-    ))
-
-    v1_reference_weight = solve_long_only_weight(
-        alpha=alpha,
-        sigma=sigma,
-        previous_weight=previous_weight,
-        risk_aversion=RISK_AVERSION * V3_V1_REFERENCE_RISK_MULTIPLIER,
-        turnover_penalty=TURNOVER_PENALTY * V3_V1_REFERENCE_TURNOVER_MULTIPLIER,
-        max_weight=MAX_WEIGHT,
-    )
-    v2_reference_weight = solve_long_only_weight(
-        alpha=composite_alpha,
-        sigma=sigma,
-        previous_weight=previous_weight,
-        risk_aversion=risk_aversion,
-        turnover_penalty=turnover_penalty * (1.0 - 0.28 * lead_activation - 0.24 * exit_activation),
-        max_weight=max_weight_cap,
-    )
-    mature_trend_to_v1 = float(np.clip(
-        0.16
-        + V3_BLEND_BULL_BONUS * bull_score
-        + V3_BLEND_ALPHA_BONUS * max(alpha, 0.0)
-        - V3_BLEND_RANGE_PENALTY * range_score
-        - V3_BLEND_BEAR_PENALTY * bear_score,
-        0.05,
-        0.95,
-    ))
-    blend_to_v1 = float(np.clip(
-        mature_trend_to_v1 - V3_LEAD_TO_V2_SHIFT * lead_activation - V3_EXIT_TO_V2_SHIFT * exit_activation,
-        0.02,
-        0.95,
-    ))
-    blend_target_weight = float(np.clip(
-        blend_to_v1 * v1_reference_weight + (1.0 - blend_to_v1) * v2_reference_weight,
-        0.0,
-        max_weight_cap,
-    ))
-    desired_floor = min(
-        floor_cap,
-        max(
+    if profile == 'conservative':
+        raw_composite_alpha = 0.85 * alpha + 0.20 * alpha_accel + 0.35 * (bull_score - bear_score) - 0.20 * max(-trend_gap, 0.0)
+        composite_alpha = V2_CONSERVATIVE_ALPHA_SCALE * raw_composite_alpha
+        risk_aversion = RISK_AVERSION * (0.90 + 0.35 * range_score + 0.85 * bear_score)
+        turnover_penalty = TURNOVER_PENALTY * (1.00 + 0.20 * range_score)
+        bear_penalty_multiplier = 1.0
+        floor_cap = V2_CONSERVATIVE_MIN_WEIGHT
+        desired_floor = floor_cap * np.clip(
+            0.70 * max(composite_alpha, 0.0) + 0.45 * bull_score - 0.35 * bear_score,
             0.0,
-            0.55 * blend_target_weight + 0.08 * bull_score - 0.08 * bear_score + 0.08 * lead_activation - 0.06 * exit_activation,
-        ),
-    )
-    tracking_strength = V3_TARGET_TRACKING_STRENGTH * float(np.clip(
-        0.60 + 0.35 * bull_score + 0.22 * max(alpha, 0.0) + 0.35 * lead_activation + 0.42 * exit_activation,
-        0.55,
-        1.70,
-    ))
-    up_turnover_penalty = turnover_penalty * float(np.clip(0.42 - 0.34 * lead_activation, V3_UPSHIFT_TURNOVER_FLOOR, 0.60))
-    down_turnover_penalty = turnover_penalty * float(np.clip(0.36 - 0.30 * exit_activation, V3_DOWNSHIFT_TURNOVER_FLOOR, 0.58))
+            1.0,
+        )
+        base_max_weight_cap = float(np.clip(MAX_WEIGHT - 0.35 * bear_score, 0.20, MAX_WEIGHT))
+        max_weight_cap = float(np.clip(base_max_weight_cap * V2_CONSERVATIVE_MAX_WEIGHT_CAP_MULTIPLIER, 0.20, MAX_WEIGHT))
+        turnover_term_builder = lambda target_weight: turnover_penalty * cp.abs(target_weight - previous_weight)
+    elif profile == 'advanced':
+        raw_composite_alpha = alpha + V2_ACCEL_WEIGHT * alpha_accel + 0.55 * (bull_score - bear_score) - 0.25 * max(-trend_gap, 0.0)
+        composite_alpha = V2_ADVANCED_ALPHA_SCALE * raw_composite_alpha
+        composite_alpha = 0.0 if abs(composite_alpha) < V2_ADVANCED_ALPHA_DEADZONE else composite_alpha
+        risk_aversion = RISK_AVERSION * (0.55 + 0.65 * range_score + 1.35 * bear_score) * V2_ADVANCED_DEFAULT_RISK_MULTIPLIER
+        turnover_penalty = TURNOVER_PENALTY * (0.80 + 0.45 * range_score + 0.20 * bear_score)
+        bear_penalty_multiplier = V2_ADVANCED_DEFAULT_BEAR_PENALTY_MULTIPLIER
+        floor_cap = V2_ADVANCED_UPTREND_MIN_WEIGHT
+        desired_floor = floor_cap * np.clip(
+            0.65 * max(composite_alpha, 0.0) + 0.55 * bull_score - 0.60 * bear_score,
+            0.0,
+            1.0,
+        )
+        base_max_weight_cap = float(np.clip(
+            MAX_WEIGHT - (MAX_WEIGHT - V2_ADVANCED_RANGE_MAX_WEIGHT) * range_score - 0.75 * bear_score,
+            0.05,
+            MAX_WEIGHT,
+        ))
+        max_weight_cap = float(np.clip(base_max_weight_cap * V2_ADVANCED_MAX_WEIGHT_CAP_MULTIPLIER, 0.05, MAX_WEIGHT))
+        turnover_term_builder = lambda target_weight: turnover_penalty * cp.abs(target_weight - previous_weight)
+        target_weight_multiplier = V2_ADVANCED_TARGET_WEIGHT_MULTIPLIER
+    elif profile == 'v3':
+        raw_composite_alpha = (
+            alpha
+            + V3_ACCEL_WEIGHT * alpha_accel
+            + V3_STATE_WEIGHT * (bull_score - bear_score)
+            + V3_POS_GAP_BONUS * max(trend_gap, 0.0)
+            - V3_NEG_GAP_PENALTY * max(-trend_gap, 0.0)
+        )
+        composite_alpha = V3_ALPHA_SCALE * raw_composite_alpha
+        composite_alpha = 0.0 if abs(composite_alpha) < V3_ALPHA_DEADZONE else composite_alpha
+        risk_aversion = RISK_AVERSION * (0.36 + 0.28 * range_score + 0.92 * bear_score) * V3_RISK_MULTIPLIER
+        turnover_penalty = TURNOVER_PENALTY * (0.44 + 0.14 * range_score + 0.08 * bear_score)
+        bear_penalty_multiplier = V3_BEAR_PENALTY_MULTIPLIER
+        floor_cap = V3_UPTREND_MIN_WEIGHT
+        base_weight_cap = float(np.clip(
+            MAX_WEIGHT - (MAX_WEIGHT - V3_RANGE_MAX_WEIGHT) * range_score - V3_BEAR_CAP_PENALTY * bear_score,
+            0.20,
+            MAX_WEIGHT,
+        ))
+
+        lead_activation = float(np.clip(
+            V3_LEAD_ACCEL_BONUS * max(alpha_accel, 0.0)
+            + V3_LEAD_STATE_BONUS * max(bull_score - bear_score, 0.0)
+            + V3_LEAD_ALPHA_BONUS * max(alpha, 0.0)
+            - V3_LEAD_NEG_GAP_PENALTY * max(-trend_gap, 0.0),
+            0.0,
+            1.0,
+        ))
+        exit_activation = float(np.clip(
+            V3_EXIT_ACCEL_BONUS * max(-alpha_accel, 0.0)
+            + V3_EXIT_BEAR_BONUS * bear_score
+            + V3_EXIT_ALPHA_BONUS * max(-alpha, 0.0)
+            + V3_EXIT_GAP_BONUS * max(-trend_gap, 0.0),
+            0.0,
+            1.0,
+        ))
+        max_weight_cap = float(np.clip(
+            (base_weight_cap + V3_LEAD_CAP_BONUS * lead_activation - V3_EXIT_CAP_PENALTY * exit_activation) * V3_MAX_WEIGHT_CAP_MULTIPLIER,
+            0.15,
+            MAX_WEIGHT,
+        ))
+
+        v1_reference_weight = solve_long_only_weight(
+            alpha=alpha,
+            sigma=sigma,
+            previous_weight=previous_weight,
+            risk_aversion=RISK_AVERSION * V3_V1_REFERENCE_RISK_MULTIPLIER,
+            turnover_penalty=TURNOVER_PENALTY * V3_V1_REFERENCE_TURNOVER_MULTIPLIER,
+            max_weight=MAX_WEIGHT,
+        )
+        v2_reference_weight = solve_long_only_weight(
+            alpha=composite_alpha,
+            sigma=sigma,
+            previous_weight=previous_weight,
+            risk_aversion=risk_aversion,
+            turnover_penalty=turnover_penalty * (1.0 - 0.28 * lead_activation - 0.24 * exit_activation),
+            max_weight=max_weight_cap,
+        )
+        mature_trend_to_v1 = float(np.clip(
+            0.16
+            + V3_BLEND_BULL_BONUS * bull_score
+            + V3_BLEND_ALPHA_BONUS * max(alpha, 0.0)
+            - V3_BLEND_RANGE_PENALTY * range_score
+            - V3_BLEND_BEAR_PENALTY * bear_score,
+            0.05,
+            0.95,
+        ))
+        blend_to_v1 = float(np.clip(
+            mature_trend_to_v1 - V3_LEAD_TO_V2_SHIFT * lead_activation - V3_EXIT_TO_V2_SHIFT * exit_activation,
+            0.02,
+            0.95,
+        ))
+        blend_target_weight = float(np.clip(
+            blend_to_v1 * v1_reference_weight + (1.0 - blend_to_v1) * v2_reference_weight,
+            0.0,
+            max_weight_cap,
+        ))
+        desired_floor = min(
+            floor_cap,
+            max(
+                0.0,
+                0.55 * blend_target_weight + 0.08 * bull_score - 0.08 * bear_score + 0.08 * lead_activation - 0.06 * exit_activation,
+            ),
+        )
+        tracking_strength = V3_TARGET_TRACKING_STRENGTH * float(np.clip(
+            0.60 + 0.35 * bull_score + 0.22 * max(alpha, 0.0) + 0.35 * lead_activation + 0.42 * exit_activation,
+            0.55,
+            1.70,
+        ))
+        up_turnover_penalty = turnover_penalty * float(np.clip(0.42 - 0.34 * lead_activation, V3_UPSHIFT_TURNOVER_FLOOR, 0.60))
+        down_turnover_penalty = turnover_penalty * float(np.clip(0.36 - 0.30 * exit_activation, V3_DOWNSHIFT_TURNOVER_FLOOR, 0.58))
+        turnover_term_builder = lambda target_weight: (
+            up_turnover_penalty * cp.pos(target_weight - previous_weight)
+            + down_turnover_penalty * cp.pos(previous_weight - target_weight)
+        )
+    else:
+        raise ValueError(f'未知 profile: {profile}')
 
     target_weight = cp.Variable()
     floor_weight = cp.Variable()
     objective = cp.Minimize(
         0.5 * risk_aversion * (sigma ** 2) * cp.square(target_weight)
         - composite_alpha * target_weight
-        + up_turnover_penalty * cp.pos(target_weight - previous_weight)
-        + down_turnover_penalty * cp.pos(previous_weight - target_weight)
+        + turnover_term_builder(target_weight)
         + 3.5 * cp.square(floor_weight - desired_floor)
         + 2.5 * cp.square(target_weight - floor_weight)
-        + (0.50 * V3_BEAR_PENALTY_MULTIPLIER) * bear_score * target_weight
-        + tracking_strength * cp.square(target_weight - blend_target_weight)
+        + (0.50 * bear_penalty_multiplier) * bear_score * target_weight
+        + tracking_strength * cp.square(target_weight - float(0.0 if np.isnan(blend_target_weight) else blend_target_weight))
     )
     constraints = [
         target_weight >= 0.0,
@@ -398,6 +456,10 @@ def solve_single_asset_weight_hybrid(alpha, alpha_accel, trend_gap, sigma, previ
         resolved_weight = float(np.clip(target_weight.value, 0.0, max_weight_cap))
         resolved_floor = float(np.clip(floor_weight.value, 0.0, min(floor_cap, resolved_weight)))
 
+    if profile == 'advanced':
+        resolved_weight = float(np.clip(resolved_weight * target_weight_multiplier, 0.0, max_weight_cap))
+        resolved_floor = float(np.clip(resolved_floor * target_weight_multiplier, 0.0, min(floor_cap, resolved_weight)))
+
     return {
         'target_weight': resolved_weight,
         'floor_weight': resolved_floor,
@@ -405,21 +467,21 @@ def solve_single_asset_weight_hybrid(alpha, alpha_accel, trend_gap, sigma, previ
         'composite_alpha': float(composite_alpha),
         'raw_composite_alpha': float(raw_composite_alpha),
         'max_weight_cap': float(max_weight_cap),
-        'v1_reference_weight': float(v1_reference_weight),
-        'v2_reference_weight': float(v2_reference_weight),
-        'blend_to_v1': float(blend_to_v1),
-        'blend_target_weight': float(blend_target_weight),
+        'v1_reference_weight': float(v1_reference_weight) if not np.isnan(v1_reference_weight) else np.nan,
+        'v2_reference_weight': float(v2_reference_weight) if not np.isnan(v2_reference_weight) else np.nan,
+        'blend_to_v1': float(blend_to_v1) if not np.isnan(blend_to_v1) else np.nan,
+        'blend_target_weight': float(blend_target_weight) if not np.isnan(blend_target_weight) else np.nan,
         'tracking_strength': float(tracking_strength),
-        'lead_activation': float(lead_activation),
-        'exit_activation': float(exit_activation),
-        'up_turnover_penalty': float(up_turnover_penalty),
-        'down_turnover_penalty': float(down_turnover_penalty),
+        'lead_activation': float(lead_activation) if not np.isnan(lead_activation) else np.nan,
+        'exit_activation': float(exit_activation) if not np.isnan(exit_activation) else np.nan,
+        'up_turnover_penalty': float(up_turnover_penalty) if not np.isnan(up_turnover_penalty) else np.nan,
+        'down_turnover_penalty': float(down_turnover_penalty) if not np.isnan(down_turnover_penalty) else np.nan,
     }
 
 
-def solve_single_asset_weight_v2(alpha, alpha_accel, trend_gap, sigma, previous_weight,
-                                 bull_score, range_score, bear_score, profile='v3'):
-    return solve_single_asset_weight_hybrid(
+def solve_single_asset_weight_hybrid(alpha, alpha_accel, trend_gap, sigma, previous_weight,
+                                     bull_score, range_score, bear_score):
+    return solve_single_asset_weight_v2(
         alpha=alpha,
         alpha_accel=alpha_accel,
         trend_gap=trend_gap,
@@ -428,6 +490,7 @@ def solve_single_asset_weight_v2(alpha, alpha_accel, trend_gap, sigma, previous_
         bull_score=bull_score,
         range_score=range_score,
         bear_score=bear_score,
+        profile='v3',
     )
 
 
@@ -675,6 +738,7 @@ def run_single_asset_backtest(history_df, data_start, data_end):
             trend_lambda=TREND_LAMBDA,
             vol_window=VOL_WINDOW,
             signal_span=SIGNAL_SPAN,
+            profile='v3',
             backtest_start=start_ts,
             backtest_end=end_ts,
         )
@@ -734,7 +798,7 @@ def run_single_asset_backtest(history_df, data_start, data_end):
                 lam=self.p.trend_lambda,
                 signal_span=self.p.signal_span,
             )
-            allocation = solve_single_asset_weight_hybrid(
+            allocation = solve_single_asset_weight_v2(
                 alpha=diag['alpha'],
                 alpha_accel=diag['alpha_accel'],
                 trend_gap=diag['trend_gap'],
@@ -743,6 +807,7 @@ def run_single_asset_backtest(history_df, data_start, data_end):
                 bull_score=diag['bull_score'],
                 range_score=diag['range_score'],
                 bear_score=diag['bear_score'],
+                profile=self.p.profile,
             )
             target_weight = allocation['target_weight']
 
@@ -939,7 +1004,7 @@ def build_runtime_data(symbol, start_date_input, end_date_input):
 def main():
     st.markdown(
         '<h1 style="text-align: center;">OPT Convex 策略 '
-        '<span style="font-size: 0.5em; color: #888888;">V5.2</span></h1>',
+        '<span style="font-size: 0.5em; color: #888888;">V5.3</span></h1>',
         unsafe_allow_html=True
     )
 
@@ -958,7 +1023,7 @@ def main():
     st.divider()
 
     # 构建数据
-    with st.spinner('正在计算策略（OPT Convex V5.2 仓位求解）...'):
+    with st.spinner('正在计算策略（OPT Convex V5.3 仓位求解）...'):
         runtime_data, runtime_error = build_runtime_data(symbol_input, start_date_input, end_date_input)
 
     if runtime_error:
@@ -979,7 +1044,7 @@ def main():
         unsafe_allow_html=True
     )
 
-    st.markdown("**OPT Convex 策略 V5.2**")
+    st.markdown("**OPT Convex 策略 V5.3**")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric(
@@ -1034,7 +1099,7 @@ def main():
     fig_equity = go.Figure()
     fig_equity.add_trace(go.Scatter(
         x=dates, y=data['equity_curve'],
-        name='OPT Convex 策略 V5.2', line=dict(color=colors['strategy'], width=2.5)
+        name='OPT Convex 策略 V5.3', line=dict(color=colors['strategy'], width=2.5)
     ))
     fig_equity.add_trace(go.Scatter(
         x=dates, y=data['buy_hold_curve'],
@@ -1217,7 +1282,7 @@ def main():
     # ========== 页脚 ==========
     st.divider()
     st.caption(
-        "OPT Convex 策略 | V5.2 | 开发: Mars Yuan"
+        "OPT Convex 策略 | V5.3 | 开发: Mars Yuan"
     )
 
 
